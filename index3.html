@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sand Temperature (Hopper) – Dashboard</title>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Load Raphael.js (required by JustGage.js) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.min.js"></script>
+
+    <!-- Load JustGage.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/justgage@1.3.5/justgage.min.js"></script>
+
+    <!-- Load Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Your existing styles remain unchanged */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: white;
+            color: black;
+            position: relative;
+            height: 80px;
+        }
+
+        .logo-left, .logo-right {
+            height: 80px;
+            width: auto;
+        }
+
+        .subheading-ribbon {
+            text-align: center;
+            font-size: 20px;
+            color: #fff;
+            padding: 10px;
+            background-color: #474847;
+            margin-bottom: 10px;
+        }
+
+        .status-section {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+        }
+
+        .gauge-container {
+            text-align: center;
+        }
+
+        .gauge {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 0;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .analytics-section {
+            padding: 20px;
+            border-top: 5px solid #333;
+            background-color: #fff;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 2fr;
+            grid-gap: 20px;
+            background-color: #f0f0f0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        .filter-section input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
+        .filter-section label {
+            display: block;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .date-slider {
+            margin-top: 10px;
+        }
+
+        .chart-section, .bar-chart-section {
+            border: 1px solid #ccc;
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .chart-section canvas, .bar-chart-section canvas {
+            width: 100%;
+        }
+
+        .bar-chart-section {
+            margin-bottom: 20px;
+        }
+
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="\leftlogo.jpeg" alt="Company Logo Left" class="logo-left">
+        <h1>Sand Temperature (Hopper) – Dashboard</h1>
+        <img src="\rightlogo.jpeg" alt="Company Logo Right" class="logo-right">
+    </header>
+
+    <div class="subheading-ribbon">
+        Live Sand Temperature Status
+    </div>
+
+    <div class="status-section">
+        <div class="gauge-container">
+            <p>Hopper 1 Temp</p>
+            <div id="hopper1-gauge" class="gauge"></div>
+        </div>
+        <div class="gauge-container">
+            <p>Hopper 2 Temp</p>
+            <div id="hopper2-gauge" class="gauge"></div>
+        </div>
+        <div class="gauge-container">
+            <p>Hopper 3 Temp</p>
+            <div id="hopper3-gauge" class="gauge"></div>
+        </div>
+        <div class="gauge-container">
+            <p>Hopper 4 Temp</p>
+            <div id="hopper4-gauge" class="gauge"></div>
+        </div>
+        <div class="gauge-container">
+            <p>Hopper 5 Temp</p>
+            <div id="hopper5-gauge" class="gauge"></div>
+        </div>
+        <div class="gauge-container">
+            <p>Hopper 6 Temp</p>
+            <div id="hopper6-gauge" class="gauge"></div>
+        </div>
+    </div>
+
+    <div class="subheading-ribbon">
+        Temperature Analytics
+    </div>
+    <div class="analytics-section" id="analytics-section">
+        <div class="analytics-grid" id="analytics-grid" >
+            <div class="filter-section" id="filter-section">
+                <label>Period:</label>
+                <input type="date" id="start" value="2024-01-01"> to 
+                <input type="date" id="end" value="2024-01-01">
+                
+                <!-- Slider below date range -->
+                <div class="date-slider">
+                    <input type="range" min="0" max="100" value="0" id="dateRangeSlider">
+                </div>
+              
+                <label>Hopper</label>
+                <input type="checkbox" id="hopper1" value="1"> Hopper 1<br>
+                <input type="checkbox" id="hopper2" value="2"> Hopper 2<br>
+                <input type="checkbox" id="hopper3" value="3"> Hopper 3<br>
+                <input type="checkbox" id="hopper4" value="4"> Hopper 4<br>
+                <input type="checkbox" id="hopper5" value="5"> Hopper 5<br>
+                <input type="checkbox" id="hopper6" value="6"> Hopper 6<br>
+                <input type="checkbox" id="all-hoppers" value="All"> All Hoppers<br>
+               <!-- <button id="fetchDataBtn">Fetch Data</button>-->
+                <label>Shift</label>
+                <label for="shift-a">A</label>
+                <input type="checkbox" id="shift-a" value="A"> 
+                <label for="shift-a">B</label>
+                <input type="checkbox" id="shift-b" value="B"> 
+                <label for="shift-a">C</label>
+                <input type="checkbox" id="shift-c" value="C"> 
+            </div>
+
+            <div>
+                <div class="bar-chart-section">
+                    <canvas id="alarmsPerMonthChart"></canvas>
+                </div>
+                <div class="bar-chart-section">
+                    <canvas id="alarmsPerShiftChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <canvas id="temperatureChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        © 2024 Sand Temperature Dashboard
+    </footer>
+
+    <script>
+        // Initialize gauges
+        const socket = io(); // Initialize socket connection
+
+        // Initialize JustGage gauges
+        var gaugeOptions = {
+            min: 0,
+            max: 50,
+            levelColors: ["#00ff00", "#ffcc00", "#ff0000"],
+            titleFontColor: "#333",
+            valueFontColor: "#333"
+        };
+
+        var hopper1Gauge = new JustGage(Object.assign({ id: "hopper1-gauge", title: "Hopper 1" }, gaugeOptions));
+        var hopper2Gauge = new JustGage(Object.assign({ id: "hopper2-gauge", title: "Hopper 2" }, gaugeOptions));
+        var hopper3Gauge = new JustGage(Object.assign({ id: "hopper3-gauge", title: "Hopper 3" }, gaugeOptions));
+        var hopper4Gauge = new JustGage(Object.assign({ id: "hopper4-gauge", title: "Hopper 4" }, gaugeOptions));
+        var hopper5Gauge = new JustGage(Object.assign({ id: "hopper5-gauge", title: "Hopper 5" }, gaugeOptions));
+        var hopper6Gauge = new JustGage(Object.assign({ id: "hopper6-gauge", title: "Hopper 6" }, gaugeOptions));
+
+        // Listen for 'modbusData' event from server
+       // Helper function to use previous value if new value is NaN or invalid
+      // Temperature threshold for alert
+const TEMP_THRESHOLD = 30;
+
+// Keep track of which hoppers have already triggered alerts to prevent spam
+const alertedHoppers = new Set();
+
+// Function to speak alerts
+function speakAlert(hopperNumber) {
+    if (!alertedHoppers.has(hopperNumber)) {
+        const message = `Warning! Hopper ${hopperNumber} has reached maximum temperature of ${TEMP_THRESHOLD} degrees`;
+        const speech = new SpeechSynthesisUtterance(message);
+        speech.lang = 'en-US';
+        speech.pitch = 1;
+        speech.rate = 0.9;  // Slightly slower for better clarity
+        speech.volume = 1;
+        
+        window.speechSynthesis.speak(speech);
+        alertedHoppers.add(hopperNumber);
+        
+        // Reset the alert after 5 minutes to allow new alerts for the same hopper
+        setTimeout(() => {
+            alertedHoppers.delete(hopperNumber);
+        },1000);
+    }
+}
+
+// Function to check temperature and trigger alert if needed
+function checkTemperature(hopperNumber, temperature) {
+    if (temperature >= TEMP_THRESHOLD) {
+        speakAlert(hopperNumber);
+    }
+}
+
+// Function to update gauge with temperature check
+function updateGauge(gauge, newValue, hopperNumber) {
+    if (newValue !== null && newValue !== undefined && !isNaN(newValue)) {
+        gauge.refresh(newValue);
+        checkTemperature(hopperNumber, newValue);
+    } else {
+        console.warn('Invalid value received; gauge retains previous value.');
+    }
+}
+
+
+
+// Listen for 'modbusData' event from the server
+socket.on('modbusData', (data) => {
+    // Update only if the data is valid for Hopper 1, 2, and 3
+    updateGauge(hopper1Gauge, data.hopper1_temperature);
+    updateGauge(hopper2Gauge, data.hopper2_temperature);
+    updateGauge(hopper3Gauge, data.hopper3_temperature);
+    updateGauge(hopper4Gauge, data.hopper4_temperature);
+
+            //hopper4Gauge.refresh(data.hopper4_temperature);
+            hopper5Gauge.refresh(data.hopper5_temperature);
+            hopper6Gauge.refresh(data.hopper6_temperature);
+        });
+
+        // Fetch data and render chart on button click
+        let alarmChartInstance = null;
+let temperatureChartInstance = null;
+let chartInstance = null;  // Declare a variable for the chart instance
+
+// Function to fetch and render temperature data
+async function fetchTemperatureData(params) {
+    try {
+        const response = await fetch(`/temperature-data?${params.toString()}`);
+        if (!response.ok) throw new Error('Network response for temperature was not ok');
+        const temperatureData = await response.json();
+        console.log('Temperature Data:', temperatureData); // Log temperature data
+        renderTemperatureChart(temperatureData);
+    } catch (error) {
+        console.error('Error fetching temperature data:', error);
+    }
+}
+
+// Function to fetch and render alarm data
+async function fetchAlarmData(params) {
+    try {
+        const response = await fetch(`/alarm-data?${params.toString()}`);
+        if (!response.ok) throw new Error('Network response for alarm was not ok');
+        const alarmData = await response.json();
+        console.log('Alarm Data:', alarmData); // Log alarm data
+        renderAlarmChart(alarmData);
+    } catch (error) {
+        console.error('Error fetching alarm data:', error);
+    }
+}
+
+// Main function to fetch and render both charts
+async function fetchAndRenderCharts() {
+    const start = document.getElementById('start').value;
+    const end = document.getElementById('end').value;
+    const hopper1 = document.getElementById('hopper1').checked;
+    const hopper2 = document.getElementById('hopper2').checked;
+
+    // Construct query parameters
+    const params = new URLSearchParams({
+        start,
+        end,
+        hopper1,
+        hopper2,
+    });
+
+    // Fetch data for both charts
+    await fetchTemperatureData(params);
+    await fetchAlarmData(params);
+}
+
+// Event listeners for changes in date or hoppers
+document.getElementById('start').addEventListener('change', fetchAndRenderCharts);
+document.getElementById('end').addEventListener('change', fetchAndRenderCharts);
+document.querySelectorAll('input[type=checkbox]').forEach(checkbox => {
+    checkbox.addEventListener('change', fetchAndRenderCharts);
+});
+
+// Function to render the temperature chart
+function renderTemperatureChart(data) {
+    const ctx = document.getElementById('temperatureChart').getContext('2d');
+    
+    // Check the structure of the data
+    console.log('Raw Temperature Data:', data); // Log the raw data
+
+    const labels = data.map(item => item.timestamp); // Assuming timestamp is returned
+    const sensor1Data = data.map(item => item.sensor1_temperature || 0); // Adjust if necessary
+    const sensor2Data = data.map(item => item.sensor2_temperature || 0); // Adjust if necessary
+
+    console.log('Sensor 1 Data:', sensor1Data); // Log sensor 1 data
+    console.log('Sensor 2 Data:', sensor2Data); // Log sensor 2 data
+
+    // Destroy existing chart instance if it exists
+    if (temperatureChartInstance) {
+        temperatureChartInstance.destroy();
+    }
+
+    // Create or update the temperature chart
+    temperatureChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Hopper 1 Temperature',
+                    data: sensor1Data,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    fill: false,
+                },
+                {
+                    label: 'Hopper 2 Temperature',
+                    data: sensor2Data,
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    fill: false,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                },
+            },
+        },
+    });
+}
+
+// Function to render the alarms chart
+function renderAlarmChart(data) {
+    const ctx = document.getElementById('alarmsPerMonthChart').getContext('2d');
+    const labels = data.map(item => `${item.year}-${item.month < 10 ? '0' : ''}${item.month}`);
+    const sensor1Data = data.map(item => item.sensor1_alarm_count || 0);
+    const sensor2Data = data.map(item => item.sensor2_alarm_count || 0);
+
+    console.log('Alarm Sensor 1 Data:', sensor1Data); // Log alarm sensor 1 data
+    console.log('Alarm Sensor 2 Data:', sensor2Data); // Log alarm sensor 2 data
+
+    // Destroy existing chart instance if it exists
+    if (alarmChartInstance) {
+        alarmChartInstance.destroy();
+    }
+
+    // Create or update the alarms chart
+    alarmChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Hopper 1 Alarms',
+                    data: sensor1Data,
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderWidth: 1,
+                    categoryPercentage: 1,
+                    barPercentage: 0.2,
+                },
+                {
+                    label: 'Hopper 2 Alarms',
+                    data: sensor2Data,
+                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                    borderWidth: 1,
+                    categoryPercentage: 1,
+                    barPercentage: 0.2,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                },
+            },
+        },
+    });
+}
+
+/*/ Listen for changes on date inputs and checkboxes for shift data
+document.getElementById('start').addEventListener('change', updateGraph);
+document.getElementById('end').addEventListener('change', updateGraph);
+document.getElementById('shift-a').addEventListener('change', updateGraph);
+document.getElementById('shift-b').addEventListener('change', updateGraph);
+document.getElementById('shift-c').addEventListener('change', updateGraph);
+
+async function updateGraph() {
+    const startDate = document.getElementById('start').value;
+    const endDate = document.getElementById('end').value;
+
+    // Get selected shifts
+    const shifts = [];
+    if (document.getElementById('shift-a').checked) shifts.push('a');
+    if (document.getElementById('shift-b').checked) shifts.push('b');
+    if (document.getElementById('shift-c').checked) shifts.push('c');
+
+    if (shifts.length === 0 || !startDate || !endDate) {
+        // Don't update if no shifts or date range is selected
+        return;
+    }
+
+    // Send POST request to backend
+    const response = await fetch('http://localhost:3000/api/temperature-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start, end, shifts })
+    });
+
+    const data = await response.json();
+
+    // Log the data to the console to verify what is being returned
+    console.log(data);
+
+    // Call the function to render the graph
+    renderGraph(data);
+}
+
+function renderGraph(data) {
+    const ctx = document.getElementById('alarmsPerShiftChart').getContext('2d');
+
+    // If there is an existing chart instance, destroy it before rendering a new one
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    const shiftLabels = [];
+    const shiftData = [];
+
+    if (data.shift_a_avg !== null) {
+        shiftLabels.push('A');
+        shiftData.push(data.shift_a_avg);
+    }
+    if (data.shift_b_avg !== null) {
+        shiftLabels.push('B');
+        shiftData.push(data.shift_b_avg);
+    }
+    if (data.shift_c_avg !== null) {
+        shiftLabels.push('C');
+        shiftData.push(data.shift_c_avg);
+    }
+
+    // If no data is returned, stop rendering
+    if (shiftLabels.length === 0) {
+        alert("No data available for the selected shifts.");
+        return;
+    }
+
+    // Create the chart and store the instance in the variable
+    chartInstance = new Chart(ctx, {
+        type: 'bar', // Bar chart
+        data: {
+            labels: shiftLabels, // Shifts
+            datasets: [{
+                label: 'Average Count of Temperatures > 30°C',
+                data: shiftData, // Data for each shift
+                backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(75, 192, 192, 0.2)'],
+                borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Call fetchAndRenderCharts on page load
+//document.addEventListener('DOMContentLoaded', fetchAndRenderCharts);
+*/
+// Listen for changes on date inputs and checkboxes for shift data
+document.getElementById('start').addEventListener('change', updateGraph);
+    document.getElementById('end').addEventListener('change', updateGraph);
+    document.getElementById('shift-a').addEventListener('change', updateGraph);
+    document.getElementById('shift-b').addEventListener('change', updateGraph);
+    document.getElementById('shift-c').addEventListener('change', updateGraph);
+
+    async function updateGraph() {
+      const startDate = document.getElementById('start').value;
+      const endDate = document.getElementById('end').value;
+
+      // Get selected shifts
+      const shifts = [];
+      if (document.getElementById('shift-a').checked) shifts.push('a');
+      if (document.getElementById('shift-b').checked) shifts.push('b');
+      if (document.getElementById('shift-c').checked) shifts.push('c');
+
+      if (shifts.length === 0 || !startDate || !endDate) {
+        // Don't update if no shifts or date range is selected
+        return;
+      }
+
+      // Send POST request to backend
+      const response = await fetch('http://localhost:3000/api/temperature-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start: startDate, end: endDate, shifts })
+      });
+
+      const data = await response.json();
+
+      // Log the data to the console to verify what is being returned
+      console.log(data);
+
+      // Call the function to render the graph
+      renderGraph(data);
+    }
+
+    function renderGraph(data) {
+      const ctx = document.getElementById('alarmsPerShiftChart').getContext('2d');
+
+      // If there is an existing chart instance, destroy it before rendering a new one
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      const shiftLabels = [];
+      const shiftData = [];
+
+      // Add data for each shift if available
+      if (data.shift_a_avg !== null) {
+        shiftLabels.push('A');
+        shiftData.push(data.shift_a_avg);
+      }
+      if (data.shift_b_avg !== null) {
+        shiftLabels.push('B');
+        shiftData.push(data.shift_b_avg);
+      }
+      if (data.shift_c_avg !== null) {
+        shiftLabels.push('C');
+        shiftData.push(data.shift_c_avg);
+      }
+
+      // If no data is returned, stop rendering
+      if (shiftLabels.length === 0) {
+        alert("No data available for the selected shifts.");
+        return;
+      }
+
+      // Create the chart and store the instance in the variable
+      chartInstance = new Chart(ctx, {
+        type: 'bar', // Bar chart
+        data: {
+          labels: shiftLabels, // Shifts
+          datasets: [{
+            label: 'Average Count of Temperatures > 30°C',
+            data: shiftData, // Data for each shift
+            backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(75, 192, 192, 0.2)'],
+            borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)'],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+    </script>
+</body>
+</html>
